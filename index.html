@@ -1,65 +1,657 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-  <title>SHAMIM LIVE TV CHANNEL CONTROL</title>
-  <link rel="stylesheet" href="style.css">
-</head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shamim Live TV - Super Admin Panel</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-green: #CFFF00;
+            --bg-black: #050505;
+            --card-bg: #0F0F0F;
+            --sidebar-bg: #000000;
+            --text-white: #FFFFFF;
+            --text-gray: #888888;
+        }
+
+        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-black); color: var(--text-white); display: flex; overflow-x: hidden; }
+
+        /* Sidebar */
+        .sidebar { width: 250px; height: 100vh; background-color: var(--sidebar-bg); border-right: 1px solid #1A1A1A; position: fixed; display: flex; flex-direction: column; z-index: 100; }
+        .brand { padding: 30px; font-size: 22px; font-weight: 800; text-transform: uppercase; }
+        .brand span { color: var(--neon-green); }
+        .nav-menu { flex-grow: 1; overflow-y: auto; }
+        .nav-item { padding: 12px 30px; display: flex; align-items: center; color: var(--text-gray); cursor: pointer; font-size: 14px; transition: 0.2s; }
+        .nav-item:hover, .nav-item.active { color: var(--text-white); background: rgba(207, 255, 0, 0.05); }
+        .nav-item.active { background-color: var(--neon-green); color: black !important; border-radius: 8px; margin: 0 15px 5px 15px; font-weight: 700; }
+        .nav-icon { margin-right: 12px; font-size: 16px; }
+        .sidebar-footer { padding: 20px; margin: 15px; background: #000; border-radius: 15px; border: 1px solid #222; text-align: center; }
+
+        /* Main Content */
+        .main { margin-left: 250px; padding: 25px; width: calc(100% - 250px); min-height: 100vh; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .admin-profile { display: flex; align-items: center; gap: 12px; }
+        .admin-profile img { width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid var(--neon-green); }
+
+        /* Grid Layouts */
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+        .stat-card { background: var(--card-bg); padding: 20px; border-radius: 15px; border: 1px solid #1A1A1A; display: flex; align-items: center; gap: 15px; }
+        .stat-icon { width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(207, 255, 0, 0.1); color: var(--neon-green); font-size: 20px; }
+        .stat-info h3 { margin: 0; font-size: 12px; color: var(--text-gray); }
+        .stat-info p { margin: 2px 0 0; font-size: 22px; font-weight: 700; }
+
+        .mid-row { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; margin-bottom: 25px; }
+        .bottom-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+
+        .content-card { background: var(--card-bg); border-radius: 15px; padding: 20px; border: 1px solid #1A1A1A; position: relative; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .card-header h2 { margin: 0; font-size: 16px; font-weight: 600; }
+
+        /* Table */
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 10px; color: var(--text-gray); font-size: 11px; border-bottom: 1px solid #1A1A1A; }
+        td { padding: 12px 10px; font-size: 12px; border-bottom: 1px solid #121212; }
+
+        .status-badge { padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+        .bg-approved { background: rgba(76, 175, 80, 0.1); color: #4CAF50; }
+        .bg-pending { background: rgba(255, 193, 7, 0.1); color: #FFC107; }
+        .bg-used { background: rgba(244, 67, 54, 0.1); color: #F44336; }
+
+        .btn-neon { background: var(--neon-green); color: black; border: none; padding: 8px 15px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 12px; }
+        .btn-action { background: #1A1A1A; border: none; color: white; padding: 5px; border-radius: 4px; cursor: pointer; margin-right: 3px; }
+
+        input, select { width: 100%; background: #000; border: 1px solid #222; padding: 10px; margin-bottom: 10px; color: white; border-radius: 6px; font-size: 13px; box-sizing: border-box; }
+        .hidden { display: none !important; }
+
+        .qa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .qa-btn { background: #000; border: 1px solid #1A1A1A; padding: 15px; border-radius: 10px; text-align: center; cursor: pointer; transition: 0.2s; font-size: 12px; }
+        .qa-btn:hover { border-color: var(--neon-green); transform: translateY(-3px); }
+        .qa-btn i { display: block; color: var(--neon-green); font-size: 20px; margin-bottom: 8px; }
+
+        #login-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--bg-black); display: flex; justify-content: center; align-items: center; z-index: 5000; }
+        .login-box { background: var(--card-bg); padding: 40px; border-radius: 20px; width: 350px; text-align: center; border: 1px solid #1A1A1A; }
+        #img-preview { width: 100%; height: 80px; object-fit: contain; margin-bottom: 10px; background: #000; border-radius: 8px; display: none; }
+    </style>
+</head>
 <body>
 
-<div class="title">
-  SHAMIM LIVE TV CHANNEL CONTROL
-</div>
-
-<div id="channels" class="grid"></div>
-
-<!-- POPUP -->
-
-<div id="popup" class="popup">
-
-  <div class="popup-box">
-
-    <h2>Channel Information</h2>
-
-    <input type="text"
-    id="channelName"
-    placeholder="Channel Name">
-
-    <textarea id="channelUrl"
-    placeholder="Channel URL"></textarea>
-
-    <input type="text"
-    id="channelLogo"
-    placeholder="Logo URL">
-
-    <div class="popup-buttons">
-
-      <button onclick="copyLink()">
-        Copy Link
-      </button>
-
-      <button onclick="copyLogo()">
-        Copy Logo
-      </button>
-
+    <div id="login-overlay">
+        <div class="login-box">
+            <h1 class="brand">SHAMIM <span>LIVE TV</span></h1>
+            <input type="email" id="adm-email" placeholder="Email Address">
+            <input type="password" id="adm-pass" placeholder="Password">
+            <button class="btn-neon" style="width: 100%;" onclick="doLogin()">LOGIN NOW</button>
+            <p id="login-error" style="color:red; font-size:11px; margin-top:10px;"></p>
+        </div>
     </div>
 
-    <button class="save-btn"
-    onclick="saveChannel()">
-      SAVE
-    </button>
+    <aside class="sidebar">
+        <div class="brand">SHAMIM <span>LIVE TV</span></div>
+        <nav class="nav-menu">
+            <div class="nav-item active" id="nav-dashboard" onclick="showTab('dashboard')"><span class="nav-icon">🏠</span> Dashboard</div>
+            <div class="nav-item" id="nav-clients" onclick="showTab('clients')"><span class="nav-icon">👥</span> Clients</div>
+            <div class="nav-item" id="nav-license" onclick="showTab('license')"><span class="nav-icon">🔑</span> License Management</div>
+            <div class="nav-item" id="nav-requests" onclick="showTab('requests')"><span class="nav-icon">📩</span> Plan Requests</div>
+            <div class="nav-item" id="nav-expired" onclick="showTab('expired')"><span class="nav-icon">⏳</span> Expired Users</div>
+            <div class="nav-item" onclick="showTab('dashboard')"><span class="nav-icon">🛍️</span> Subscriptions</div>
+            <div class="nav-item" id="nav-channels" onclick="showTab('channels')"><span class="nav-icon">📺</span> Channels</div>
+            <div class="nav-item" id="nav-notice" onclick="showTab('notice')"><span class="nav-icon">📢</span> Notice Board</div>
+            <div class="nav-item" onclick="showTab('dashboard')"><span class="nav-icon">📹</span> Live Streams</div>
+            <div class="nav-item" onclick="showTab('dashboard')"><span class="nav-icon">🔔</span> Notifications</div>
+            <div class="nav-item" onclick="showTab('dashboard')"><span class="nav-icon">⚙️</span> App Settings</div>
+        </nav>
+        <div class="nav-item" style="color: #ff3d00; margin-bottom: 10px;" onclick="doLogout()"><span class="nav-icon">🚪</span> Logout</div>
+        <div class="sidebar-footer">
+            <div style="font-weight: 700; color: white; font-size: 13px;">Shamim Live TV Admin</div>
+            <div style="color: var(--neon-green); font-size: 11px;">Version 1.2.0</div>
+        </div>
+    </aside>
 
-    <button class="close-btn"
-    onclick="closePopup()">
-      CLOSE
-    </button>
+    <main class="main">
+        <header class="top-bar">
+            <div><h2 id="page-title" style="margin: 0; font-size: 20px;">DASHBOARD</h2></div>
+            <div class="admin-profile" onclick="document.getElementById('admin-profile-upload').click()" style="cursor: pointer;">
+                <div style="text-align: right;">
+                    <div style="font-size: 14px; font-weight: 700;">Shamimul Haque Samin</div>
+                    <small style="color: var(--neon-green);">Super Admin (Live)</small>
+                </div>
+                <img id="admin-profile-img" src="https://via.placeholder.com/38" style="width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid var(--neon-green); object-fit: cover;">
+                <input type="file" id="admin-profile-upload" style="display: none;" accept="image/*" onchange="updateAdminProfile(this)">
+            </div>
+        </header>
 
-  </div>
+        <!-- DASHBOARD TAB -->
+        <div id="dashboard-tab">
+            <section class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-info"><h3>Total Clients</h3><p id="st-total">0</p></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-info"><h3>Approved</h3><p id="st-approved">0</p></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🔑</div>
+                    <div class="stat-info"><h3>Licenses</h3><p id="st-keys">0</p></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📺</div>
+                    <div class="stat-info"><h3>Live Channels</h3><p id="st-chans">0</p></div>
+                </div>
+            </section>
 
-</div>
+            <div class="mid-row">
+                <div class="content-card">
+                    <div class="card-header"><h2>Registered Clients Management</h2><button class="btn-neon" onclick="showTab('clients')">View All</button></div>
+                    <table>
+                        <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Action</th></tr></thead>
+                        <tbody id="dash-user-table"></tbody>
+                    </table>
+                </div>
+                <div class="content-card">
+                    <div class="card-header"><h2>Quick License</h2></div>
+                    <div style="background: #080808; padding: 15px; border-radius: 10px;">
+                        <small>Duration:</small>
+                        <div style="display:flex; gap:15px; margin: 10px 0;">
+                            <label><input type="radio" name="dur_dash" value="1" checked style="width:auto;"> 1 Mo</label>
+                            <label><input type="radio" name="dur_dash" value="2" style="width:auto;"> 2 Mo</label>
+                        </div>
+                        <input type="text" id="gen-key-display-dash" readonly style="color: var(--neon-green); text-align:center; font-family: monospace;" placeholder="SHAMIM-XXXXXX">
+                        <button class="btn-neon" style="width: 100%; margin-top: 10px;" onclick="genKey('dash')">GENERATE KEY</button>
+                    </div>
+                </div>
+            </div>
 
-<script src="app.js"></script>
+            <div class="bottom-row">
+                <div class="content-card">
+                    <div class="card-header"><h2>Channel Overview</h2></div>
+                    <div id="dash-chan-list" style="max-height: 150px; overflow-y: auto;"></div>
+                </div>
+                <div class="content-card">
+                    <div class="card-header"><h2>Recent Activity</h2></div>
+                    <div id="activity-list" style="font-size: 12px; color: var(--text-gray);">
+                        <p>✅ Database Connected</p>
+                        <p>🚀 Systems Online</p>
+                    </div>
+                </div>
+                <div class="content-card">
+                    <div class="card-header"><h2>Quick Actions</h2></div>
+                    <div class="qa-grid">
+                        <div class="qa-btn" onclick="showTab('clients')"><i>👤</i>Users</div>
+                        <div class="qa-btn" onclick="showTab('license')"><i>🔑</i>License</div>
+                        <div class="qa-btn" onclick="showTab('channels')"><i>📺</i>Channels</div>
+                        <div class="qa-btn"><i>🔔</i>Notify</div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
+        <!-- CHANNELS TAB -->
+        <div id="channels-tab" class="hidden">
+            <div class="mid-row" style="grid-template-columns: 1fr 2fr;">
+                <div class="content-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h2 id="chan-form-title" style="margin:0;">Add New Channel</h2>
+                    </div>
+                    <input type="hidden" id="edit-chan-id">
+                    <img id="img-preview" src="">
+                    <input type="file" id="chan-file" accept="image/*" style="display: none;" onchange="previewImage(this)">
+                    <button class="btn-action" style="width: 100%; margin-bottom: 10px;" onclick="document.getElementById('chan-file').click()">Select Logo File</button>
+                    <input type="text" id="chan-logo-url" placeholder="Or Paste Logo URL">
+                    <input type="text" id="chan-name" placeholder="Channel Name">
+                    <input type="text" id="chan-cat" placeholder="Category">
+                    <input type="text" id="chan-url" placeholder="Stream URL (.m3u8)">
+                    <button class="btn-neon" style="width: 100%;" id="btn-save-chan" onclick="saveChannel()">SAVE CHANNEL</button>
+                </div>
+                <div class="content-card">
+                    <h2>Live Channel List</h2>
+                    <table style="display: block; max-height: 500px; overflow-y: auto;">
+                        <thead><tr><th>Logo</th><th>Name</th><th>Category</th><th>Action</th></tr></thead>
+                        <tbody id="full-chan-table"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- CLIENTS TAB -->
+        <div id="clients-tab" class="hidden">
+            <div class="content-card">
+                <h2>All Registered Clients</h2>
+                <table>
+                    <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Expiry Date</th><th>Action</th></tr></thead>
+                    <tbody id="full-user-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- LICENSE TAB -->
+        <div id="license-tab" class="hidden">
+            <div class="mid-row" style="grid-template-columns: 1fr 2fr;">
+                <div class="content-card">
+                    <h2>Generate New License</h2>
+                    <div style="background: #080808; padding: 20px; border-radius: 10px;">
+                        <label>Select Duration:</label>
+                        <div style="margin: 15px 0;">
+                            <label><input type="radio" name="dur" value="1" checked style="width:auto;"> 1 Month</label><br>
+                            <label><input type="radio" name="dur" value="2" style="width:auto; margin-top:10px;"> 2 Months</label>
+                        </div>
+                        <input type="text" id="gen-key-display" readonly style="text-align:center; font-weight:700; color:var(--neon-green);" placeholder="SHAMIM-XXXXXX">
+                        <button class="btn-neon" style="width:100%; margin-top: 15px;" onclick="genKey('full')">GENERATE LICENSE KEY</button>
+                    </div>
+                </div>
+                <div class="content-card">
+                    <h2>Generated License Keys List</h2>
+                    <table style="display: block; max-height: 500px; overflow-y: auto;">
+                        <thead><tr><th>Key</th><th>Duration</th><th>Status</th><th>Used By</th><th>Action</th></tr></thead>
+                        <tbody id="license-table"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- NOTICE TAB -->
+        <div id="notice-tab" class="hidden">
+            <div class="content-card" style="max-width: 600px;">
+                <h2>📢 Notice Board Management</h2>
+                <div style="background: #080808; padding: 20px; border-radius: 15px; border: 1px solid #1A1A1A;">
+                    <label style="color: var(--text-gray); font-size: 13px;">Notice Message:</label>
+                    <textarea id="notice-text" rows="4" style="width: 100%; background: #000; border: 1px solid #222; color: white; padding: 12px; border-radius: 8px; margin-top: 10px; margin-bottom: 15px; font-family: inherit; resize: none;" placeholder="Enter notice for all users..."></textarea>
+
+                    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 20px;">
+                        <label style="color: var(--text-gray); font-size: 13px;">Show Notice:</label>
+                        <input type="checkbox" id="notice-active" style="width: 20px; height: 20px; cursor: pointer;">
+                    </div>
+
+                    <button class="btn-neon" style="width: 100%; height: 45px; font-size: 14px;" onclick="updateNotice()">PUBLISH NOTICE</button>
+                    <p id="notice-status" style="color: var(--neon-green); font-size: 11px; margin-top: 10px; display: none;">Notice updated successfully!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- REQUESTS TAB -->
+        <div id="requests-tab" class="hidden">
+            <div class="content-card">
+                <h2>Pending Plan Requests</h2>
+                <table>
+                    <thead><tr><th>User UID</th><th>Requested Plan</th><th>Date</th><th>Action</th></tr></thead>
+                    <tbody id="requests-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- EXPIRED TAB -->
+        <div id="expired-tab" class="hidden">
+            <div class="content-card">
+                <h2>Expired & Inactive Users</h2>
+                <div style="margin-bottom: 20px; padding: 15px; background: rgba(255, 193, 7, 0.05); border-radius: 10px; border: 1px solid rgba(255, 193, 7, 0.2);">
+                    <small style="color: #FFC107;">Select a renewal duration before clicking "RENEW":</small>
+                    <select id="renewal-months" style="margin-top: 10px; border-color: var(--neon-green);">
+                        <option value="1">1 Month Renewal</option>
+                        <option value="2">2 Months Renewal</option>
+                        <option value="6">6 Months Renewal</option>
+                    </select>
+                </div>
+                <table>
+                    <thead><tr><th>Name</th><th>Email</th><th>Last Expiry</th><th>Action</th></tr></thead>
+                    <tbody id="expired-user-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAlQTM06QM8mNnFIQ3XR7rVKgdkPQNqBNQ",
+            authDomain: "shamim-live-tv.firebaseapp.com",
+            databaseURL: "https://shamim-live-tv-default-rtdb.firebaseio.com",
+            projectId: "shamim-live-tv",
+            storageBucket: "shamim-live-tv.appspot.com",
+            messagingSenderId: "911878306196",
+            appId: "1:911878306196:web:c907275fac467bf4d07781"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const auth = firebase.auth();
+        const storage = firebase.storage();
+
+        function doLogin() {
+            auth.signInWithEmailAndPassword(document.getElementById('adm-email').value, document.getElementById('adm-pass').value)
+                .then(() => document.getElementById('login-overlay').classList.add('hidden'))
+                .catch(err => document.getElementById('login-error').innerText = err.message);
+        }
+
+        function showTab(id) {
+            ['dashboard', 'channels', 'clients', 'license', 'requests', 'expired', 'notice'].forEach(t => {
+                const tab = document.getElementById(t+'-tab');
+                if(tab) tab.classList.add('hidden');
+            });
+            const activeTab = document.getElementById(id+'-tab');
+            if(activeTab) activeTab.classList.remove('hidden');
+
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const nav = document.getElementById('nav-'+id);
+            if(nav) nav.classList.add('active');
+            document.getElementById('page-title').innerText = id.toUpperCase();
+        }
+
+        function initApp() {
+            // Load Current Notice
+            db.ref('app_settings/notice').on('value', snap => {
+                if(snap.exists()) {
+                    const n = snap.val();
+                    document.getElementById('notice-text').value = n.message || "";
+                    document.getElementById('notice-active').checked = n.active || false;
+                }
+            });
+
+            // Fetch External Channels from M3U Links
+            const externalUrls = [
+                "https://raw.githubusercontent.com/shamimpipon/Shamim-live-tv/main/Channel.m3u",
+                "https://private-zone-by-xfireflix.pages.dev/playlist-isp-bdix.m3u"
+            ];
+
+            let allExternalChannels = [];
+            const proxyUrl = "https://api.allorigins.win/raw?url="; // Fallback Proxy
+
+            async function fetchM3U(url, useProxy = false) {
+                try {
+                    const finalUrl = useProxy ? proxyUrl + encodeURIComponent(url) : url;
+                    console.log("Fetching: " + finalUrl);
+                    const response = await fetch(finalUrl);
+                    if (!response.ok) throw new Error("Network response was not ok: " + response.status);
+                    const text = await response.text();
+
+                    if (!text || text.trim().length === 0) throw new Error("Empty response from server");
+
+                    const lines = text.split('\n');
+                    let currentChan = null;
+                    let foundInThisFile = 0;
+
+                    for(let line of lines) {
+                        line = line.trim();
+                        if(line.startsWith('#EXTINF:')) {
+                            const nameMatch = line.match(/,(.*)$/);
+                            const logoMatch = line.match(/tvg-logo="([^"]*)"/) || line.match(/logo="([^"]*)"/);
+                            const catMatch = line.match(/group-title="([^"]*)"/);
+                            currentChan = {
+                                name: nameMatch ? nameMatch[1].trim() : "Unknown",
+                                logoUrl: logoMatch ? logoMatch[1] : "https://via.placeholder.com/100",
+                                category: catMatch ? catMatch[1] : "General",
+                                source: "GitHub/External"
+                            };
+                        } else if(line.startsWith('http') && currentChan) {
+                            currentChan.url = line;
+                            if(!allExternalChannels.some(e => e.url === currentChan.url)) {
+                                allExternalChannels.push(currentChan);
+                                foundInThisFile++;
+                            }
+                            currentChan = null;
+                        }
+                    }
+                    console.log(`Loaded ${foundInThisFile} channels from ${url}`);
+                } catch(e) {
+                    console.error("Failed to load: " + url, e);
+                    if (!useProxy) {
+                        console.log("Retrying with proxy...");
+                        return fetchM3U(url, true);
+                    }
+                }
+            }
+
+            // Load External first then combine with Firebase
+            Promise.all(externalUrls.map(u => fetchM3U(u))).then(() => {
+                renderCombinedChannels();
+                if (allExternalChannels.length === 0) {
+                    console.warn("No external channels loaded. Check console for CORS or Network errors.");
+                }
+            });
+
+            // Users
+            db.ref('users').on('value', snap => {
+                let html = '', expHtml = '', t=0, a=0;
+                snap.forEach(c => {
+                    const u = c.val(); t++;
+                    const row = `<tr><td>${u.name||'User'}</td><td>${u.email}</td><td><span class="status-badge ${u.status==='Approved'?'bg-approved':'bg-pending'}">${u.status}</span></td><td>${u.expiryDate||'N/A'}</td><td><button class="btn-action" onclick="approve('${c.key}')">✅</button><button class="btn-action" onclick="delUser('${c.key}')">🗑️</button></td></tr>`;
+                    html += row;
+
+                    if(u.status==='Approved') a++;
+                    else if(u.status === 'Expired' || u.status === 'Pending') {
+                        expHtml += `<tr><td>${u.name||'User'}</td><td>${u.email}</td><td>${u.expiryDate||'N/A'}</td><td><button class="btn-neon" onclick="renewUser('${c.key}')">RENEW NOW</button> <button class="btn-action" onclick="delUser('${c.key}')">🗑️</button></td></tr>`;
+                    }
+                });
+                document.getElementById('dash-user-table').innerHTML = html;
+                document.getElementById('full-user-table').innerHTML = html;
+                document.getElementById('expired-user-table').innerHTML = expHtml;
+                document.getElementById('st-total').innerText = t; document.getElementById('st-approved').innerText = a;
+            });
+
+            // Channels (Firebase)
+            db.ref('channels').on('value', snap => {
+                firebaseChannels = [];
+                snap.forEach(c => {
+                    const ch = c.val();
+                    ch.key = c.key;
+                    ch.source = "Firebase";
+                    firebaseChannels.push(ch);
+                });
+                renderCombinedChannels();
+            });
+
+            // Licenses
+            db.ref('license_keys').on('value', snap => {
+                let html = ''; let count = 0;
+                snap.forEach(c => {
+                    const k = c.val(); count++;
+                    html += `<tr><td>${c.key}</td><td>${k.durationMonths} Mo</td><td><span class="status-badge ${k.status==='active'?'bg-approved':'bg-used'}">${k.status}</span></td><td>${k.usedBy||'No'}</td><td><button class="btn-action" onclick="delKey('${c.key}')">🗑️</button></td></tr>`;
+                });
+                document.getElementById('license-table').innerHTML = html;
+                document.getElementById('st-keys').innerText = count;
+            });
+
+            // Requests
+            db.ref('plan_requests').on('value', snap => {
+                let html = '';
+                snap.forEach(c => {
+                    const r = c.val();
+                    if(r.status === 'pending') {
+                        const date = new Date(r.timestamp).toLocaleString();
+                        html += `<tr><td>${r.uid}</td><td>${r.plan}</td><td>${date}</td><td><button class="btn-neon" onclick="approveRequest('${r.uid}', ${r.months})">APPROVE</button> <button class="btn-action" onclick="deleteRequest('${r.uid}')">🗑️</button></td></tr>`;
+                    }
+                });
+                document.getElementById('requests-table').innerHTML = html;
+            });
+        }
+
+        async function approveRequest(uid, months) {
+            if(!confirm("Approve this plan for " + months + " months?")) return;
+
+            const now = new Date();
+            now.setMonth(now.getMonth() + months);
+            const expiry = now.toISOString().split('T')[0];
+
+            await db.ref('users/' + uid).update({
+                status: 'Approved',
+                subscriptionType: 'Premium',
+                expiryDate: expiry
+            });
+
+            await db.ref('plan_requests/' + uid).remove();
+            alert("User Approved! Expiry: " + expiry);
+        }
+
+        function deleteRequest(uid) {
+            if(confirm("Delete Request?")) db.ref('plan_requests/' + uid).remove();
+        }
+
+        async function renewUser(uid) {
+            const months = parseInt(document.getElementById('renewal-months').value);
+            if(!confirm("Renew this user for " + months + " months?")) return;
+
+            const now = new Date();
+            now.setMonth(now.getMonth() + months);
+            const expiry = now.toISOString().split('T')[0];
+
+            await db.ref('users/' + uid).update({
+                status: 'Approved',
+                subscriptionType: 'Premium',
+                expiryDate: expiry
+            });
+
+            alert("User Renewed Successfully! Expiry: " + expiry);
+        }
+
+        async function updateNotice() {
+            const message = document.getElementById('notice-text').value;
+            const active = document.getElementById('notice-active').checked;
+            const status = document.getElementById('notice-status');
+
+            await db.ref('app_settings/notice').set({
+                message: message,
+                active: active,
+                timestamp: Date.now()
+            });
+
+            status.style.display = 'block';
+            setTimeout(() => status.style.display = 'none', 3000);
+        }
+
+        let firebaseChannels = [];
+        let allExternalChannels = [];
+
+        function renderCombinedChannels() {
+            const fullList = [...firebaseChannels, ...allExternalChannels];
+            let html = '', dashHtml = '';
+
+            fullList.forEach(ch => {
+                const isFirebase = ch.source === "Firebase";
+                const actionBtn = isFirebase ?
+                    `<button class="btn-action" onclick="editChan('${ch.key}','${ch.name.replace(/'/g,"")}','${ch.category}','${ch.url}','${ch.logoUrl}')">✏️</button><button class="btn-action" onclick="delChan('${ch.key}')">🗑️</button>` :
+                    `<span title="GitHub channels can only be edited via GitHub" style="font-size:10px; color:#555;">External</span>`;
+
+                html += `<tr><td><img src="${ch.logoUrl}" width="25"></td><td>${ch.name}</td><td>${ch.category}</td><td>${actionBtn}</td></tr>`;
+                dashHtml += `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #111; font-size:12px;"><span>${ch.name} <small style="color:#444">${ch.source === 'Firebase' ? '' : '(GH)'}</small></span><span style="color:var(--neon-green)">${ch.category}</span></div>`;
+            });
+
+            document.getElementById('full-chan-table').innerHTML = html;
+            document.getElementById('dash-chan-list').innerHTML = dashHtml;
+            document.getElementById('st-chans').innerText = fullList.length;
+        }
+
+        async function saveChannel() {
+            const name = document.getElementById('chan-name').value;
+            const url = document.getElementById('chan-url').value;
+            if(!name || !url) return alert("Required!");
+            const editId = document.getElementById('edit-chan-id').value;
+            const file = document.getElementById('chan-file').files[0];
+            let logoUrl = document.getElementById('chan-logo-url').value;
+
+            if(file) {
+                const ref = storage.ref('logos/' + Date.now() + "_" + file.name);
+                await ref.put(file);
+                logoUrl = await ref.getDownloadUrl();
+            }
+
+            const data = { name, category: document.getElementById('chan-cat').value, url, logoUrl: logoUrl || 'https://via.placeholder.com/100' };
+            if(editId) await db.ref('channels/'+editId).update(data); else await db.ref('channels').push(data);
+            alert("Success!"); resetChanForm();
+        }
+
+        async function importFromGithub() {
+            if(allExternalChannels.length === 0) {
+                alert("No channels found to sync! Please refresh the page and wait 5 seconds for GitHub links to load.");
+                return;
+            }
+
+            if(!confirm("This will copy " + allExternalChannels.length + " channels to your Database. Continue?")) return;
+            const status = document.getElementById('import-status');
+            status.style.display = 'block';
+            status.innerText = "Syncing " + allExternalChannels.length + " channels... Please wait.";
+
+            let count = 0;
+            for(let channel of allExternalChannels) {
+                // Check if already exists in Firebase to avoid duplicates (by URL)
+                const exists = firebaseChannels.some(fc => fc.url === channel.url);
+                if(!exists) {
+                    try {
+                        await db.ref('channels').push({
+                            name: channel.name,
+                            logoUrl: channel.logoUrl,
+                            category: channel.category,
+                            url: channel.url
+                        });
+                        count++;
+                    } catch (err) { console.error("Firebase push error:", err); }
+                }
+            }
+            status.innerText = "Successfully imported " + count + " new channels!";
+            setTimeout(() => status.style.display = 'none', 5000);
+            alert("Import Complete! " + count + " channels added to your database.");
+        }
+
+        function genKey(type) {
+            const key = "SHAMIM-" + Math.random().toString(36).substr(2,6).toUpperCase();
+            const dur = type === 'dash' ? document.querySelector('input[name="dur_dash"]:checked').value : document.querySelector('input[name="dur"]:checked').value;
+            db.ref('license_keys/'+key).set({ durationMonths: parseInt(dur), status: 'active' })
+                .then(() => document.getElementById(type === 'dash' ? 'gen-key-display-dash' : 'gen-key-display').value = key);
+        }
+
+        function editChan(id, n, c, u, l) {
+            document.getElementById('edit-chan-id').value = id;
+            document.getElementById('chan-name').value = n;
+            document.getElementById('chan-cat').value = c;
+            document.getElementById('chan-url').value = u;
+            document.getElementById('chan-logo-url').value = l;
+            document.getElementById('chan-form-title').innerText = "Edit Mode";
+            showTab('channels');
+        }
+
+        function resetChanForm() {
+            document.getElementById('edit-chan-id').value = "";
+            document.getElementById('chan-name').value = "";
+            document.getElementById('chan-cat').value = "";
+            document.getElementById('chan-url').value = "";
+            document.getElementById('chan-logo-url').value = "";
+            document.getElementById('chan-form-title').innerText = "Add New Channel";
+        }
+
+        function approve(id) { db.ref('users/'+id).update({status:'Approved'}); }
+        function delUser(id) { if(confirm("Delete?")) db.ref('users/'+id).remove(); }
+        function delChan(id) { if(confirm("Delete?")) db.ref('channels/'+id).remove(); }
+        function delKey(id) { if(confirm("Delete?")) db.ref('license_keys/'+id).remove(); }
+        function doLogout() { auth.signOut().then(()=>location.reload()); }
+        function previewImage(i) { if(i.files[0]) { let r = new FileReader(); r.onload=e=> {document.getElementById('img-preview').src=e.target.result; document.getElementById('img-preview').style.display='block';}; r.readAsDataURL(i.files[0]); } }
+
+        // Admin Profile Memory System
+        function loadAdminProfile() {
+            const savedImg = localStorage.getItem('admin_profile_img');
+            if (savedImg) {
+                document.getElementById('admin-profile-img').src = savedImg;
+            }
+        }
+        function updateAdminProfile(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const base64 = e.target.result;
+                    document.getElementById('admin-profile-img').src = base64;
+                    localStorage.setItem('admin_profile_img', base64);
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        loadAdminProfile(); // Initialize on load
+
+        auth.onAuthStateChanged(u => { if(u) { document.getElementById('login-overlay').classList.add('hidden'); initApp(); } });
+    </script>
 </body>
 </html>
